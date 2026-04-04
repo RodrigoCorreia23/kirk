@@ -107,6 +107,28 @@ Sections: TODO  DOING  NEEDS REVIEW  DONE
 
 ---
 
+## Tools -- Discord
+
+**Script:** `./tools/discord_tool.py`
+
+Create threads and send messages in Discord.
+
+```bash
+# Create a thread in the agent channel
+./tools/discord_tool.py create-thread --name "Thread Title" --message "First message"
+
+# Send a message to a specific channel or thread
+./tools/discord_tool.py send --channel <channel-or-thread-id> --message "Hello"
+
+# List active threads
+./tools/discord_tool.py list-threads
+
+# Read recent messages from a channel or thread
+./tools/discord_tool.py read-messages --channel <channel-or-thread-id> --limit 10
+```
+
+---
+
 ## Conversation Context
 
 Past conversation summaries are stored in `./context/`. These capture topics, decisions, and outcomes from prior Discord conversations.

@@ -7,6 +7,8 @@ import os
 
 import discord
 
+from session_manager import SessionManager
+
 log = logging.getLogger(__name__)
 
 
@@ -40,36 +42,66 @@ class AgentDiscordBot(discord.Client):
         self._allowed_guild = int(config["discord"]["guild_id"])
         self._user_allowlist = set(config["discord"].get("user_allowlist", []))
         self._query_lock = asyncio.Lock()
+        self._session_mgr = SessionManager(workspace_dir, self)
 
     async def on_ready(self):
         log.info(f"Logged in to Discord as {self.user} (id: {self.user.id})")
+        self._session_mgr.load_thread_sessions()
+        asyncio.create_task(self._session_mgr.start_cleanup_loop())
 
     async def on_message(self, message: discord.Message):
         # Ignore own messages
         if message.author == self.user:
             return
-        # Allowlist enforcement
-        if not message.guild or message.guild.id != self._allowed_guild:
-            return
-        if message.channel.id != self._allowed_channel:
-            return
+
+        # Determine if this is a thread message
+        is_thread = isinstance(message.channel, discord.Thread)
+
+        # Allowlist enforcement — check parent channel for threads
+        if is_thread:
+            if not message.channel.parent:
+                return
+            if message.channel.parent.id != self._allowed_channel:
+                return
+        else:
+            if not message.guild or message.guild.id != self._allowed_guild:
+                return
+            if message.channel.id != self._allowed_channel:
+                return
+
         if self._user_allowlist and str(message.author.id) not in self._user_allowlist:
             return
 
         log.info(f"Discord message from {message.author}: {message.content[:100]}")
 
+        # Get or create session for this channel/thread
+        channel_id = message.channel.id
+        session, is_new = self._session_mgr.get_or_create_session(
+            channel_id, is_thread
+        )
+
         async with message.channel.typing():
             response = await self.invoke_claude(
-                message.content, continue_session=True
+                message.content,
+                session_id=session.session_id,
+                is_new_session=is_new,
             )
 
         for chunk in split_message(response):
             await message.channel.send(chunk)
 
     async def invoke_claude(
-        self, prompt: str, continue_session: bool = False
+        self,
+        prompt: str,
+        session_id: str | None = None,
+        is_new_session: bool = True,
     ) -> str:
-        """Spawn claude CLI as subprocess and return the result text."""
+        """Spawn claude CLI as subprocess and return the result text.
+
+        session_id=None: ephemeral session (triggers)
+        session_id + is_new_session=True: create new session with --session-id
+        session_id + is_new_session=False: resume existing session with --resume
+        """
         claude_cfg = self.config["claude"]
         cmd = [
             "claude",
@@ -85,8 +117,12 @@ class AgentDiscordBot(discord.Client):
             claude_cfg["allowed_tools"],
             "--dangerously-skip-permissions",
         ]
-        if continue_session:
-            cmd.append("--continue")
+
+        if session_id:
+            if is_new_session:
+                cmd.extend(["--session-id", session_id])
+            else:
+                cmd.extend(["--resume", session_id])
 
         timeout = claude_cfg.get("timeout", 600)
 
@@ -94,7 +130,11 @@ class AgentDiscordBot(discord.Client):
         env = {**os.environ, "ANTHROPIC_API_KEY": ""}
 
         async with self._query_lock:
-            log.info(f"Invoking Claude Code in {self._workspace_dir} (continue={continue_session})")
+            session_info = f"session={session_id[:8] if session_id else 'ephemeral'}"
+            log.info(
+                f"Invoking Claude Code in {self._workspace_dir} "
+                f"({session_info}, new={is_new_session})"
+            )
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
@@ -133,3 +173,7 @@ class AgentDiscordBot(discord.Client):
             return
         for chunk in split_message(text):
             await channel.send(chunk)
+
+    def save_sessions(self):
+        """Save thread sessions for restart resilience."""
+        self._session_mgr.save_thread_sessions()

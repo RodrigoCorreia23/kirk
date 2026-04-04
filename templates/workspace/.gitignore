@@ -1,0 +1,4 @@
+# Only CLAUDE.md should be in the workspace root.
+# The context/ system handles all conversation memory.
+MEMORY.md
+memory/

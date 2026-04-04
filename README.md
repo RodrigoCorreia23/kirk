@@ -197,6 +197,18 @@ systemctl --user stop claude-agent-<profile>.service
 echo "Say hello" | socat - UNIX-CONNECT:~/.claude-agents/<profile>/state/trigger.sock
 ```
 
+## Conversation Context
+
+The framework includes a session tracking and context memory system:
+
+- **Within 10 minutes:** Messages share a Claude session (full conversational context via `--session-id`/`--resume`)
+- **After 10 min inactivity:** Session closes, Claude generates a summary saved to `context/YYYY-MM-DD-HHhMM.md`
+- **Cross-session recall:** Summaries indexed in `context/INDEX.md` by topic. Agent looks up past conversations on demand (when you reference "remember when we...")
+- **Threads:** Each Discord thread gets its own persistent session (never expires)
+- **Triggers:** Run ephemeral (no session tracking, no interference)
+
+**Important:** Do NOT place `MEMORY.md` or `memory/` directories in the workspace root. Claude Code auto-reads all `.md` files in the working directory, which causes unbounded context growth. The `context/` system replaces manual memory files entirely.
+
 ## Security
 
 - Each agent's credentials are in `credentials/` with `chmod 600`

@@ -50,8 +50,10 @@ class TriggerListener:
 
         log.info(f"Trigger received: {prompt[:100]}...")
 
-        # Invoke Claude without --continue (fresh context for triggers)
-        response = await self.bot.invoke_claude(prompt, continue_session=False)
+        # Invoke Claude without session tracking (ephemeral)
+        response = await self.bot.invoke_claude(
+            prompt, session_id=None, is_new_session=True
+        )
 
         # Only post to Discord if the response is meaningful
         if response.startswith(SILENT_PREFIX):

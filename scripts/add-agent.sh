@@ -96,6 +96,9 @@ sed "s/PROFILE_NAME/$PROFILE/g; s/AGENT_NAME/${PROFILE^}/g" \
     "$REPO_DIR/templates/workspace/CLAUDE.md" \
     > "$PROFILE_DIR/workspace/CLAUDE.md"
 
+# Ensure no MEMORY.md or memory/ in workspace root — context system handles all memory
+mkdir -p "$PROFILE_DIR/workspace/context"
+
 # --- Create systemd services ---
 
 echo "[5/5] Creating systemd services..."

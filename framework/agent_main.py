@@ -80,6 +80,7 @@ async def run_agent(profile: str):
 
     # Clean up
     log.info("Shutting down...")
+    bot.save_sessions()
     for task in pending:
         task.cancel()
     if not bot.is_closed():

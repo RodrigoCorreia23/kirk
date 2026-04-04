@@ -104,3 +104,21 @@ Sections: TODO  DOING  NEEDS REVIEW  DONE
 - Don't exfiltrate private data.
 - Don't run destructive commands without asking.
 - When in doubt, ask.
+
+---
+
+## Conversation Context
+
+Past conversation summaries are stored in `./context/`. These capture topics, decisions, and outcomes from prior Discord conversations.
+
+**When to check context:**
+- When the user says "remember when we...", "like we discussed", "that thing from last week", or similar references to past conversations
+- When you need background on a topic that was previously discussed
+- Do NOT proactively check context on every message -- only when there is a clear reference to past interaction
+
+**How to check:**
+1. Read `./context/INDEX.md` to find relevant entries by topic keywords and date
+2. Read only the specific summary file(s) that match what the user is referencing
+3. Never bulk-read all context files
+
+**Context files are auto-generated.** Do not edit them manually.

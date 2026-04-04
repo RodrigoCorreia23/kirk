@@ -90,7 +90,7 @@ EOF
 
 # --- Create CLAUDE.md ---
 
-echo "[4/5] Creating workspace CLAUDE.md template..."
+echo "[4/5] Creating workspace CLAUDE.md template and tools..."
 
 sed "s/PROFILE_NAME/$PROFILE/g; s/AGENT_NAME/${PROFILE^}/g" \
     "$REPO_DIR/templates/workspace/CLAUDE.md" \
@@ -98,6 +98,11 @@ sed "s/PROFILE_NAME/$PROFILE/g; s/AGENT_NAME/${PROFILE^}/g" \
 
 # Ensure no MEMORY.md or memory/ in workspace root — context system handles all memory
 mkdir -p "$PROFILE_DIR/workspace/context"
+
+# Symlink shared discord tool
+if [[ -f "$AGENTS_DIR/shared/tools/discord_tool.py" ]]; then
+    ln -sf "$AGENTS_DIR/shared/tools/discord_tool.py" "$PROFILE_DIR/workspace/tools/discord_tool.py"
+fi
 
 # --- Create systemd services ---
 

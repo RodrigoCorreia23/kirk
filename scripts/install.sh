@@ -67,10 +67,16 @@ echo "[3/5] Copying framework files..."
 cp "$REPO_DIR/framework/config.py" "$SHARED_DIR/"
 cp "$REPO_DIR/framework/discord_bot.py" "$SHARED_DIR/"
 cp "$REPO_DIR/framework/trigger_handler.py" "$SHARED_DIR/"
+cp "$REPO_DIR/framework/session_manager.py" "$SHARED_DIR/"
 cp "$REPO_DIR/framework/agent_main.py" "$SHARED_DIR/"
 cp "$REPO_DIR/framework/requirements.txt" "$SHARED_DIR/"
 
 chmod +x "$SHARED_DIR/agent_main.py"
+
+# Copy shared tools
+mkdir -p "$SHARED_DIR/tools"
+cp "$REPO_DIR/framework/tools/discord_tool.py" "$SHARED_DIR/tools/"
+chmod +x "$SHARED_DIR/tools/discord_tool.py"
 
 # --- Create Python venv ---
 

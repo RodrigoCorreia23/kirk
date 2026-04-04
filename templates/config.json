@@ -1,0 +1,17 @@
+{
+  "profile": "PROFILE_NAME",
+  "discord": {
+    "channel_id": "DISCORD_CHANNEL_ID",
+    "guild_id": "DISCORD_GUILD_ID",
+    "user_allowlist": ["DISCORD_USER_ID"]
+  },
+  "claude": {
+    "model": "sonnet",
+    "max_turns": 25,
+    "timeout": 600,
+    "allowed_tools": "Bash,Read,Write,Edit,Glob,Grep,WebSearch,WebFetch"
+  },
+  "trigger": {
+    "socket_path": "state/trigger.sock"
+  }
+}

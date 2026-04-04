@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily briefing for Claude agent (PROFILE_NAME)
+Requires=claude-briefing-PROFILE_NAME.service
+
+[Timer]
+OnCalendar=*-*-* 08:00:00 UTC
+RandomizedDelaySec=1200
+AccuracySec=60s
+Persistent=true
+
+[Install]
+WantedBy=timers.target

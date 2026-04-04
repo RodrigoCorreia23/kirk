@@ -1,0 +1,16 @@
+[Unit]
+Description=Claude Agent (PROFILE_NAME)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Environment="PATH=%h/.claude-agents/shared/.venv/bin:%h/.local/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=%h/.claude-agents/shared/.venv/bin/python3 %h/.claude-agents/shared/agent_main.py --profile PROFILE_NAME
+Restart=always
+RestartSec=15
+KillMode=mixed
+TimeoutStopSec=60
+
+[Install]
+WantedBy=default.target

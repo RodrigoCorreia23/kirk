@@ -1,0 +1,9 @@
+[Unit]
+Description=Daily briefing for Claude agent (PROFILE_NAME)
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/claude-trigger.sh PROFILE_NAME --daily
+TimeoutStartSec=1200
+StandardOutput=journal
+StandardError=journal

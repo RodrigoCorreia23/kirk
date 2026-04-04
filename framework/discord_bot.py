@@ -80,9 +80,23 @@ class AgentDiscordBot(discord.Client):
             channel_id, is_thread
         )
 
+        # For new thread sessions, seed with existing messages so the agent
+        # knows what was already said (e.g., the bot created the thread and
+        # posted an initial message via the discord_tool.py CLI).
+        prompt = message.content
+        if is_new and is_thread:
+            thread_context = await self._build_thread_context(message.channel)
+            if thread_context:
+                prompt = (
+                    f"Context: This is a Discord thread titled \"{message.channel.name}\". "
+                    f"Here are the messages posted so far:\n\n{thread_context}\n\n"
+                    f"Now the user says: {message.content}"
+                )
+                log.info(f"Seeded thread {channel_id} with {len(thread_context)} chars of context")
+
         async with message.channel.typing():
             response = await self.invoke_claude(
-                message.content,
+                prompt,
                 session_id=session.session_id,
                 is_new_session=is_new,
             )
@@ -164,6 +178,33 @@ class AgentDiscordBot(discord.Client):
             # Fall back to raw text output
             text = stdout.decode().strip()
             return text if text else "No response."
+
+    async def _build_thread_context(self, thread: discord.Thread) -> str | None:
+        """Fetch recent messages from a thread to seed the session context.
+
+        Returns a formatted string of prior messages, or None if the thread
+        is empty or only has the current user's message.
+        """
+        try:
+            messages = []
+            async for msg in thread.history(limit=20, oldest_first=True):
+                # Skip the message that triggered this call (it's the current prompt)
+                messages.append(msg)
+
+            if len(messages) <= 1:
+                return None
+
+            # Format as conversation log (exclude the last message — that's the current prompt)
+            lines = []
+            for msg in messages[:-1]:
+                author = "You" if msg.author == self.user else msg.author.display_name
+                content = msg.content[:500] if msg.content else "(no text)"
+                lines.append(f"[{author}]: {content}")
+
+            return "\n".join(lines)
+        except Exception as e:
+            log.error(f"Failed to fetch thread history: {e}")
+            return None
 
     async def post_to_channel(self, text: str):
         """Post a message to the agent's Discord channel."""

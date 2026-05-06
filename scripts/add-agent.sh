@@ -113,6 +113,16 @@ sed "s/PROFILE_NAME/$PROFILE/g; s/AGENT_NAME/${PROFILE^}/g" \
     "$REPO_DIR/templates/workspace/CLAUDE.md" \
     > "$PROFILE_DIR/workspace/CLAUDE.md"
 
+# Copy docs/ (lazy-loaded knowledge files referenced from CLAUDE.md)
+mkdir -p "$PROFILE_DIR/workspace/docs"
+if [[ -d "$REPO_DIR/templates/workspace/docs" ]]; then
+    for DOC in "$REPO_DIR/templates/workspace/docs/"*.md; do
+        [[ -f "$DOC" ]] || continue
+        sed "s/PROFILE_NAME/$PROFILE/g; s/AGENT_NAME/${PROFILE^}/g" \
+            "$DOC" > "$PROFILE_DIR/workspace/docs/$(basename "$DOC")"
+    done
+fi
+
 # Ensure no MEMORY.md or memory/ in workspace root — context system handles all memory
 mkdir -p "$PROFILE_DIR/workspace/context"
 

@@ -139,6 +139,10 @@ def cmd_list_scenarios(args):
     data = api_get("/scenarios", params=params)
     scenarios = data.get("scenarios", data) if isinstance(data, dict) else data
 
+    total = len(scenarios)
+    if args.limit and args.limit > 0:
+        scenarios = scenarios[:args.limit]
+
     if args.json:
         print(json.dumps(scenarios, indent=2))
     else:
@@ -147,6 +151,8 @@ def cmd_list_scenarios(args):
             return
         for s in scenarios:
             print(f"  {s.get('name', '?')}  (id: {s.get('id', '?')})")
+        if len(scenarios) < total:
+            print(f"\n... showing {len(scenarios)} of {total}. Use --limit 0 for all.")
 
 
 def cmd_get_scenario(args):
@@ -324,6 +330,8 @@ def main():
 
     p_list = sub.add_parser("list-scenarios", help="List scenarios in team")
     p_list.add_argument("--team-id")
+    p_list.add_argument("--limit", type=int, default=50,
+                        help="Max results to display (0 = all). Default 50.")
     p_list.add_argument("--json", action="store_true")
 
     p_get = sub.add_parser("get-scenario", help="Fetch scenario metadata")

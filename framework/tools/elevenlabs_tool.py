@@ -149,6 +149,9 @@ def rewrite_tool_webhooks(config: dict, webhook_map: dict) -> list:
 def cmd_list_agents(args):
     data = api_get("/v1/convai/agents")
     agents = data.get("agents", data) if isinstance(data, dict) else data
+    total = len(agents)
+    if args.limit and args.limit > 0:
+        agents = agents[:args.limit]
     if args.json:
         print(json.dumps(agents, indent=2))
     else:
@@ -157,6 +160,8 @@ def cmd_list_agents(args):
             return
         for a in agents:
             print(f"  {a.get('name', '?')}  (id: {a.get('agent_id', '?')})")
+        if len(agents) < total:
+            print(f"\n... showing {len(agents)} of {total}. Use --limit 0 for all.")
 
 
 def cmd_get_agent(args):
@@ -306,6 +311,8 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_list = sub.add_parser("list-agents", help="List all agents")
+    p_list.add_argument("--limit", type=int, default=50,
+                        help="Max results to display (0 = all). Default 50.")
     p_list.add_argument("--json", action="store_true")
 
     p_get = sub.add_parser("get-agent", help="Fetch full agent config")

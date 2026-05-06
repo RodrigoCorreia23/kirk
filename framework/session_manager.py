@@ -17,9 +17,16 @@ from pathlib import Path
 
 log = logging.getLogger(__name__)
 
-INACTIVITY_TIMEOUT = 600  # 10 minutes
+INACTIVITY_TIMEOUT = 600  # 10 minutes — channel sessions
+THREAD_INACTIVITY_TIMEOUT = 24 * 60 * 60  # 24 hours — thread sessions
 CLEANUP_INTERVAL = 60  # Check for expired sessions every 60 seconds
 MIN_MESSAGES_FOR_SUMMARY = 2
+
+
+def _session_expired(session, now: float) -> bool:
+    """Check if a session has gone idle past its timeout."""
+    timeout = THREAD_INACTIVITY_TIMEOUT if session.is_thread else INACTIVITY_TIMEOUT
+    return (now - session.last_activity) >= timeout
 
 SUMMARY_PROMPT = (
     "Summarize this conversation concisely for future reference. "
@@ -60,19 +67,16 @@ class SessionManager:
         now = time.time()
 
         if existing:
-            expired = (
-                not existing.is_thread
-                and (now - existing.last_activity) >= INACTIVITY_TIMEOUT
-            )
-            if not expired:
+            if not _session_expired(existing, now):
                 existing.last_activity = now
                 existing.message_count += 1
                 return existing, False
 
-            # Expired channel session — close it asynchronously
+            # Expired session — close it asynchronously
+            kind = "thread" if existing.is_thread else "channel"
             log.info(
-                f"Session {existing.session_id[:8]} expired for channel {channel_id} "
-                f"({existing.message_count} messages)"
+                f"{kind.capitalize()} session {existing.session_id[:8]} expired "
+                f"for channel {channel_id} ({existing.message_count} messages)"
             )
             asyncio.create_task(self._close_session(existing))
 
@@ -98,10 +102,8 @@ class SessionManager:
             await asyncio.sleep(CLEANUP_INTERVAL)
             now = time.time()
             expired = [
-                s
-                for s in list(self._sessions.values())
-                if not s.is_thread
-                and (now - s.last_activity) >= INACTIVITY_TIMEOUT
+                s for s in list(self._sessions.values())
+                if _session_expired(s, now)
             ]
             for session in expired:
                 log.info(

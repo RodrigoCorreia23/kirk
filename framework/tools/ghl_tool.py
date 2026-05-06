@@ -102,17 +102,27 @@ def api_post(path: str, data: dict) -> dict:
 # Commands
 # ---------------------------------------------------------------------------
 
+def _truncate(items: list, limit: int) -> tuple[list, int]:
+    total = len(items)
+    if limit and limit > 0:
+        items = items[:limit]
+    return items, total
+
+
 def cmd_list_locations(args):
     company_id = get_ghl_config().get("company_id")
     if not company_id:
         sys.exit("Missing automation.ghl.company_id in config.json")
     data = api_get("/locations/search", params={"companyId": company_id, "limit": 100})
     locations = data.get("locations", [])
+    locations, total = _truncate(locations, args.limit)
     if args.json:
         print(json.dumps(locations, indent=2))
     else:
         for loc in locations:
             print(f"  {loc.get('name', '?')}  (id: {loc.get('id', '?')})")
+        if len(locations) < total:
+            print(f"\n... showing {len(locations)} of {total}. Use --limit 0 for all.")
 
 
 def cmd_list_snapshots(args):
@@ -121,21 +131,27 @@ def cmd_list_snapshots(args):
         sys.exit("Missing automation.ghl.company_id in config.json")
     data = api_get("/snapshots/", params={"companyId": company_id})
     snapshots = data.get("snapshots", [])
+    snapshots, total = _truncate(snapshots, args.limit)
     if args.json:
         print(json.dumps(snapshots, indent=2))
     else:
         for s in snapshots:
             print(f"  {s.get('name', '?')}  (id: {s.get('id', '?')})")
+        if len(snapshots) < total:
+            print(f"\n... showing {len(snapshots)} of {total}. Use --limit 0 for all.")
 
 
 def cmd_list_workflows(args):
     data = api_get("/workflows/", params={"locationId": args.location_id})
     workflows = data.get("workflows", [])
+    workflows, total = _truncate(workflows, args.limit)
     if args.json:
         print(json.dumps(workflows, indent=2))
     else:
         for w in workflows:
             print(f"  {w.get('name', '?')}  (id: {w.get('id', '?')})")
+        if len(workflows) < total:
+            print(f"\n... showing {len(workflows)} of {total}. Use --limit 0 for all.")
 
 
 def cmd_create_location(args):
@@ -191,13 +207,19 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_loc = sub.add_parser("list-locations", help="List sub-accounts (locations)")
+    p_loc.add_argument("--limit", type=int, default=50,
+                       help="Max results to display (0 = all). Default 50.")
     p_loc.add_argument("--json", action="store_true")
 
     p_snap = sub.add_parser("list-snapshots", help="List available snapshots")
+    p_snap.add_argument("--limit", type=int, default=50,
+                        help="Max results to display (0 = all). Default 50.")
     p_snap.add_argument("--json", action="store_true")
 
     p_wf = sub.add_parser("list-workflows", help="List workflows in a location")
     p_wf.add_argument("--location-id", required=True)
+    p_wf.add_argument("--limit", type=int, default=50,
+                      help="Max results to display (0 = all). Default 50.")
     p_wf.add_argument("--json", action="store_true")
 
     p_cl = sub.add_parser("create-location",

@@ -117,7 +117,7 @@ sed "s/PROFILE_NAME/$PROFILE/g; s/AGENT_NAME/${PROFILE^}/g" \
 mkdir -p "$PROFILE_DIR/workspace/context"
 
 # Symlink shared tools
-for TOOL in discord_tool.py elevenlabs_tool.py make_tool.py ghl_tool.py; do
+for TOOL in discord_tool.py elevenlabs_tool.py make_tool.py ghl_tool.py todoist.py; do
     if [[ -f "$AGENTS_DIR/shared/tools/$TOOL" ]]; then
         ln -sf "$AGENTS_DIR/shared/tools/$TOOL" "$PROFILE_DIR/workspace/tools/$TOOL"
     fi

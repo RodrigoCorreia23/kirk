@@ -73,16 +73,39 @@ If all sections empty -> respond with `[SILENT] No tasks assigned.`
 **Config:** `~/.claude-agents/PROFILE_NAME/credentials/todoist-projects.json`
 **Token:** `~/.claude-agents/PROFILE_NAME/credentials/todoist-token`
 
+### Two projects, two policies
+
+`todoist-projects.json` defines named projects. Currently:
+- `kirk` (default) -- your own project. Sections: TODO, DOING, NEEDS REVIEW, DONE.
+- `personal` -- the user's personal task list.
+
+**Default behaviour:** if you omit `--project`, the tool uses `kirk`. Run
+`./tools/todoist.py projects` to see all configured projects.
+
+### Confirmation rule (HARD)
+
+- **Reads on either project (`list`, `get`, `comments`, `sections`, `projects`):** free.
+- **Writes on `kirk`** (your heartbeat: `move-section`, plus `update` of tasks the user assigned to you): free, follow the workflow below.
+- **Writes on `personal`** (`create`, `update`, `move-section`, `complete`, `comment`): **must be confirmed in Discord first.** Describe the exact task content/section/due, wait for explicit "yes" / "avança" / "ok", then run.
+
+### Commands
+
 ```bash
-./tools/todoist.py list [--section SECTION] [--project PROJECT] [--json]
+./tools/todoist.py list [--project NAME] [--section SECTION] [--json]
 ./tools/todoist.py get <task_id> [--json]
 ./tools/todoist.py comments <task_id> [--json]
-./tools/todoist.py move-section <task_id> <section> [--json]
-./tools/todoist.py update <task_id> [--title TITLE] [--due DATE] [--description TEXT] [--json]
-./tools/todoist.py projects
+./tools/todoist.py create --content TEXT [--project NAME] [--section SECTION] [--due DATE] [--description TEXT] [--priority N] [--json]
+./tools/todoist.py move-section <task_id> <section> [--project NAME] [--json]
+./tools/todoist.py update <task_id> [--title T] [--due D] [--description X] [--priority N] [--json]
+./tools/todoist.py complete <task_id> [--json]
+./tools/todoist.py comment <task_id> --content TEXT [--json]
+./tools/todoist.py projects [--json]
+./tools/todoist.py sections [--project NAME] [--json]
 ```
 
-Sections: TODO  DOING  NEEDS REVIEW  DONE
+`--priority`: 1 (highest) to 4 (lowest). `--due` accepts natural language ("tomorrow at 9am", "next Monday").
+
+Sections in `kirk`: TODO  DOING  NEEDS REVIEW  DONE
 
 ---
 

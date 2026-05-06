@@ -42,7 +42,7 @@ from pathlib import Path
 
 import requests
 
-REST_BASE = "https://api.todoist.com/rest/v2"
+REST_BASE = "https://api.todoist.com/api/v1"
 SYNC_BASE = "https://api.todoist.com/sync/v9"
 
 
@@ -114,6 +114,21 @@ def api_get(path: str, params: dict = None) -> dict | list:
     return r.json()
 
 
+def api_list(path: str, params: dict = None) -> list:
+    """Fetch a list endpoint, transparently following pagination via next_cursor."""
+    items: list = []
+    params = dict(params or {})
+    while True:
+        data = api_get(path, params)
+        if isinstance(data, list):
+            return data
+        items.extend(data.get("results", []))
+        cursor = data.get("next_cursor")
+        if not cursor:
+            return items
+        params["cursor"] = cursor
+
+
 def api_post(path: str, data: dict = None) -> dict:
     r = requests.post(f"{REST_BASE}{path}", headers=headers(), json=data or {})
     if not r.ok:
@@ -135,7 +150,7 @@ def sync_command(commands: list[dict]) -> dict:
 # ---------------------------------------------------------------------------
 
 def find_section_id(project_id: str, section_name: str) -> str:
-    sections = api_get("/sections", {"project_id": project_id})
+    sections = api_list("/sections", {"project_id": project_id})
     for s in sections:
         if s["name"] == section_name:
             return s["id"]
@@ -153,7 +168,7 @@ def cmd_list(args):
     params = {"project_id": pid}
     if args.section:
         params["section_id"] = find_section_id(pid, args.section)
-    tasks = api_get("/tasks", params)
+    tasks = api_list("/tasks", params)
 
     if args.json:
         print(json.dumps(tasks, indent=2))
@@ -180,7 +195,7 @@ def cmd_get(args):
 
 
 def cmd_comments(args):
-    comments = api_get("/comments", {"task_id": args.task_id})
+    comments = api_list("/comments", {"task_id": args.task_id})
     if args.json:
         print(json.dumps(comments, indent=2))
     else:
@@ -266,7 +281,7 @@ def cmd_comment(args):
 
 
 def cmd_projects(args):
-    projects = api_get("/projects")
+    projects = api_list("/projects")
     if args.json:
         print(json.dumps(projects, indent=2))
     else:
@@ -276,7 +291,7 @@ def cmd_projects(args):
 
 def cmd_sections(args):
     pname, pid = resolve_project_id(args.project)
-    sections = api_get("/sections", {"project_id": pid})
+    sections = api_list("/sections", {"project_id": pid})
     if args.json:
         print(json.dumps(sections, indent=2))
     else:

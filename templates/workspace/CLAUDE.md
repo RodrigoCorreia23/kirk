@@ -101,6 +101,7 @@ auto-loaded; you must read the file before using its rules.
 | Voice Agent cloning, "monta cliente novo X", ElevenLabs/Make/GHL details | `./docs/cloning.md` |
 | Andavira project, "estuda andavira", `ssh ctvc@192.168.59.210` | `./docs/andavira.md` |
 | Todoist personal project, dual-project rules, full command reference | `./docs/todoist.md` |
+| Operating inside a GHL sub-account (contacts, pipelines, conversations, calendars) — `mcp__ghl-*` tools | `./docs/ghl-mcp.md` |
 | User asks you to fix/improve yourself or any tool | `./docs/self-improvement.md` |
 | Past conversation: "remember when we...", "like we discussed" | `./context/INDEX.md` then specific summary |
 

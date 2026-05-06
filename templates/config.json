@@ -13,5 +13,22 @@
   },
   "trigger": {
     "socket_path": "state/trigger.sock"
+  },
+  "automation": {
+    "elevenlabs": {
+      "template_agents": [],
+      "template_workspace_webhooks": []
+    },
+    "make": {
+      "zone": "eu2.make.com",
+      "team_id": "",
+      "template_scenarios": []
+    },
+    "ghl": {
+      "api_version": "2021-07-28",
+      "company_id": "",
+      "template_snapshot_id": "",
+      "template_snapshot_name": ""
+    }
   }
 }

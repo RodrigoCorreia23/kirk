@@ -75,8 +75,12 @@ chmod +x "$SHARED_DIR/agent_main.py"
 
 # Copy shared tools
 mkdir -p "$SHARED_DIR/tools"
-cp "$REPO_DIR/framework/tools/discord_tool.py" "$SHARED_DIR/tools/"
-chmod +x "$SHARED_DIR/tools/discord_tool.py"
+for TOOL in discord_tool.py elevenlabs_tool.py make_tool.py ghl_tool.py; do
+    if [[ -f "$REPO_DIR/framework/tools/$TOOL" ]]; then
+        cp "$REPO_DIR/framework/tools/$TOOL" "$SHARED_DIR/tools/"
+        chmod +x "$SHARED_DIR/tools/$TOOL"
+    fi
+done
 
 # --- Create Python venv ---
 

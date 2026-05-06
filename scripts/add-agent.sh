@@ -84,6 +84,23 @@ cat > "$PROFILE_DIR/config.json" << EOF
   },
   "trigger": {
     "socket_path": "state/trigger.sock"
+  },
+  "automation": {
+    "elevenlabs": {
+      "template_agents": [],
+      "template_workspace_webhooks": []
+    },
+    "make": {
+      "zone": "eu2.make.com",
+      "team_id": "",
+      "template_scenarios": []
+    },
+    "ghl": {
+      "api_version": "2021-07-28",
+      "company_id": "",
+      "template_snapshot_id": "",
+      "template_snapshot_name": ""
+    }
   }
 }
 EOF
@@ -99,10 +116,12 @@ sed "s/PROFILE_NAME/$PROFILE/g; s/AGENT_NAME/${PROFILE^}/g" \
 # Ensure no MEMORY.md or memory/ in workspace root — context system handles all memory
 mkdir -p "$PROFILE_DIR/workspace/context"
 
-# Symlink shared discord tool
-if [[ -f "$AGENTS_DIR/shared/tools/discord_tool.py" ]]; then
-    ln -sf "$AGENTS_DIR/shared/tools/discord_tool.py" "$PROFILE_DIR/workspace/tools/discord_tool.py"
-fi
+# Symlink shared tools
+for TOOL in discord_tool.py elevenlabs_tool.py make_tool.py ghl_tool.py; do
+    if [[ -f "$AGENTS_DIR/shared/tools/$TOOL" ]]; then
+        ln -sf "$AGENTS_DIR/shared/tools/$TOOL" "$PROFILE_DIR/workspace/tools/$TOOL"
+    fi
+done
 
 # --- Create systemd services ---
 
@@ -142,6 +161,12 @@ echo ""
 echo "  3. Add additional credentials if needed:"
 echo "     echo '<token>' > $PROFILE_DIR/credentials/todoist-token"
 echo "     chmod 600 $PROFILE_DIR/credentials/todoist-token"
+echo ""
+echo "     For automation tools (optional, fill what you have):"
+echo "       elevenlabs-api-key   (ElevenLabs Conversational AI)"
+echo "       make-api-token       (Make.com — Pro+ plan only; UI mode used otherwise)"
+echo "       ghl-api-key          (GoHighLevel)"
+echo "     Then fill the IDs in $PROFILE_DIR/config.json under \"automation\"."
 echo ""
 echo "  4. Add the profile to the trigger script:"
 echo "     Edit ~/.local/bin/claude-trigger.sh to add check_${PROFILE} and briefing_${PROFILE}"

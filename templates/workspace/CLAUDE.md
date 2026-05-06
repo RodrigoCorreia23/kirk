@@ -129,6 +129,84 @@ Create threads and send messages in Discord.
 
 ---
 
+## Tools -- Automation (Voice Agent cloning)
+
+Three tools clone a Voice Agent stack for a new client: a Make scenario, an
+ElevenLabs Conversational AI agent, and a GoHighLevel sub-account. Template IDs
+live in `config.json` under `automation.*`. API keys live in `credentials/`.
+
+**Scripts:**
+- `./tools/elevenlabs_tool.py` — list/get/clone agents, update prompt + tool webhooks
+- `./tools/make_tool.py` — list/get/clone scenarios; auto-detects API vs UI mode
+- `./tools/ghl_tool.py` — list locations/snapshots/workflows (writes stubbed)
+
+### Confirmation rule (HARD)
+
+**Read-only commands run freely.** These are safe:
+`list-agents`, `get-agent`, `list-scenarios`, `get-scenario`, `get-webhook-url`,
+`list-locations`, `list-snapshots`, `list-workflows`.
+
+**Write commands MUST be confirmed in Discord before execution.** These create
+or modify external resources:
+`clone-agent`, `update-prompt`, `update-webhook`, `clone-scenario`, `create-location`.
+
+Before any write, post a message describing exactly what you are about to do
+(template ID, new name, target IDs/URLs) and wait for an explicit "yes" /
+"avança" / "ok" from the user.
+
+### New-client cloning workflow
+
+Triggered when the user says something like "clona um cliente novo chamado X"
+or "monta o setup para o cliente Y".
+
+1. **Confirm scope.** Ask which template stack to clone from (if more than one)
+   and the new client's name. Read `automation.*` from `config.json` to know
+   defaults.
+
+2. **Make first.** Cloning order is fixed: Make produces new webhook URLs that
+   ElevenLabs needs. Clients typically have a *set* of scenarios (booking +
+   several EOC variants); the template list lives in
+   `config.json -> automation.make.template_scenarios`.
+   ```bash
+   # Clone every scenario in the template set, substituting {client} in names:
+   ./tools/make_tool.py clone-template-set --client "<client>" --json
+   ```
+   The output is a JSON list with `role`, `scenario_id`, and `webhook_url` per
+   cloned scenario — feed `webhook_url` values into the ElevenLabs step.
+   For ad-hoc single cloning use `clone-scenario --template-id ID --name NAME`.
+   In UI mode the helper prompts you for the new ID/URL after manual cloning.
+
+3. **ElevenLabs second.** Clone the agent and rewrite tool webhooks to the new
+   Make URLs from step 2.
+   ```bash
+   ./tools/elevenlabs_tool.py clone-agent \
+       --template-id $ELEVEN_TEMPLATE_ID --name "<client>" \
+       --webhook-map '{"book_appointment": "<new-make-url>"}'
+   ```
+   If the user provided a custom prompt, pass `--prompt-file <path>`.
+
+4. **GoHighLevel third.** Currently `create-location` is stubbed. For now:
+   list snapshots/workflows for inspection, and fall back to manual snapshot
+   load in the GHL UI until the sub-account model is confirmed.
+
+5. **Report.** Post a summary in Discord: new Make scenario ID + URL, new
+   ElevenLabs agent ID, GHL state. Save IDs somewhere persistent if the user
+   asks (e.g. a new context entry).
+
+### Failure handling
+
+If a step fails mid-flow (e.g. ElevenLabs clones ok but Make webhook fetch
+errors), STOP and report state in Discord. Do not retry blindly — partial state
+is worse than no state. Ask the user how to proceed.
+
+### Never log or echo credentials
+
+Tools read keys from `credentials/` automatically. Never `cat` a credentials
+file, never print keys to Discord, never include them in commands you write
+to logs.
+
+---
+
 ## Conversation Context
 
 Past conversation summaries are stored in `./context/`. These capture topics, decisions, and outcomes from prior Discord conversations.

@@ -86,7 +86,8 @@ If all sections empty -> respond with `[SILENT] No tasks assigned.`
 
 - **Reads on either project (`list`, `get`, `comments`, `sections`, `projects`):** free.
 - **Writes on `kirk`** (your heartbeat: `move-section`, plus `update` of tasks the user assigned to you): free, follow the workflow below.
-- **Writes on `personal`** (`create`, `update`, `move-section`, `complete`, `comment`): **must be confirmed in Discord first.** Describe the exact task content/section/due, wait for explicit "yes" / "avança" / "ok", then run.
+- **`create` on `personal`:** free. The user expects you to add the task immediately and report how it ended up (id, content, section, due) — do not ask for re-confirmation.
+- **`update` / `move-section` / `complete` / `comment` on `personal`** (anything that changes a task that already exists in the user's list): **must be confirmed in Discord first.** Describe the target task and the change, wait for explicit "yes" / "avança" / "ok", then run.
 
 ### Commands
 

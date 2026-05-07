@@ -37,13 +37,11 @@ todoist-projects.json schema:
 import argparse
 import json
 import sys
-import uuid
 from pathlib import Path
 
 import requests
 
 REST_BASE = "https://api.todoist.com/api/v1"
-SYNC_BASE = "https://api.todoist.com/sync/v9"
 
 
 # ---------------------------------------------------------------------------
@@ -136,15 +134,6 @@ def api_post(path: str, data: dict = None) -> dict:
     return r.json() if r.text else {}
 
 
-def sync_command(commands: list[dict]) -> dict:
-    """Send commands to the Sync API (used for item_move)."""
-    payload = {"commands": json.dumps(commands)}
-    r = requests.post(f"{SYNC_BASE}/sync", headers=headers(), data=payload)
-    if not r.ok:
-        sys.exit(f"Todoist Sync API error {r.status_code}: {r.text}")
-    return r.json()
-
-
 # ---------------------------------------------------------------------------
 # Section lookup
 # ---------------------------------------------------------------------------
@@ -228,18 +217,11 @@ def cmd_create(args):
 def cmd_move_section(args):
     _, pid = resolve_project_id(args.project)
     sec_id = find_section_id(pid, args.section)
-    res = sync_command([{
-        "type": "item_move",
-        "uuid": str(uuid.uuid4()),
-        "args": {"id": args.task_id, "section_id": sec_id},
-    }])
+    moved = api_post(f"/tasks/{args.task_id}/move", {"section_id": sec_id})
     if args.json:
         print(json.dumps({"task_id": args.task_id, "section": args.section,
-                          "section_id": sec_id, "sync_status": res.get("sync_status")}, indent=2))
+                          "section_id": sec_id, "result": moved}, indent=2))
     else:
-        statuses = (res.get("sync_status") or {}).values()
-        if any(s != "ok" for s in statuses):
-            sys.exit(f"Move failed: {res}")
         print(f"Task {args.task_id} moved to '{args.section}'")
 
 

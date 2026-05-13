@@ -11,6 +11,7 @@ Usage:
   discord_tool.py send --channel CHANNEL_ID --message-file FILE [--json]
   discord_tool.py list-threads [--channel CHANNEL_ID] [--json]
   discord_tool.py read-messages --channel CHANNEL_ID [--limit N] [--json]
+  discord_tool.py download-attachment --url URL --out PATH [--json]
 
 Thread creation posts in the agent's configured channel by default.
 Messages longer than 2000 chars are automatically split into multiple posts.
@@ -230,6 +231,16 @@ def cmd_read_messages(args):
                 "author": m["author"]["username"],
                 "content": m["content"],
                 "timestamp": m["timestamp"],
+                "attachments": [
+                    {
+                        "id": a["id"],
+                        "filename": a.get("filename"),
+                        "url": a.get("url"),
+                        "content_type": a.get("content_type"),
+                        "size": a.get("size"),
+                    }
+                    for a in m.get("attachments", [])
+                ],
             }
             for m in messages
         ]
@@ -239,6 +250,41 @@ def cmd_read_messages(args):
             author = m["author"]["username"]
             content = m["content"][:200]
             print(f"  [{author}] {content}")
+            for a in m.get("attachments", []):
+                print(f"    [attachment] {a.get('filename')} ({a.get('content_type')}): {a.get('url')}")
+
+
+def cmd_download_attachment(args):
+    """Download a Discord attachment URL to a local file."""
+    if not args.url:
+        sys.exit("--url is required for download-attachment command")
+    if not args.out:
+        sys.exit("--out is required for download-attachment command")
+
+    out_path = Path(args.out).expanduser()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Discord CDN URLs (cdn.discordapp.com / media.discordapp.net) are
+    # signed via query params — do NOT send the bot token here.
+    resp = requests.get(args.url, stream=True)
+    if not resp.ok:
+        sys.exit(f"Download error {resp.status_code}: {resp.text[:200]}")
+
+    bytes_written = 0
+    with open(out_path, "wb") as f:
+        for chunk in resp.iter_content(chunk_size=64 * 1024):
+            if chunk:
+                f.write(chunk)
+                bytes_written += len(chunk)
+
+    if args.json:
+        print(json.dumps({
+            "path": str(out_path),
+            "bytes": bytes_written,
+            "content_type": resp.headers.get("content-type"),
+        }, indent=2))
+    else:
+        print(f"Downloaded {bytes_written} bytes to {out_path}")
 
 
 # ---------------------------------------------------------------------------
@@ -284,6 +330,11 @@ def main():
     p_read.add_argument("--limit", type=int, default=10, help="Number of messages (max 50)")
     p_read.add_argument("--json", action="store_true")
 
+    p_dl = sub.add_parser("download-attachment", help="Download a Discord attachment URL to a local file")
+    p_dl.add_argument("--url", required=True, help="Attachment URL (from read-messages)")
+    p_dl.add_argument("--out", required=True, help="Local output path")
+    p_dl.add_argument("--json", action="store_true")
+
     args = parser.parse_args()
 
     commands = {
@@ -291,6 +342,7 @@ def main():
         "send": cmd_send,
         "list-threads": cmd_list_threads,
         "read-messages": cmd_read_messages,
+        "download-attachment": cmd_download_attachment,
     }
     commands[args.command](args)
 

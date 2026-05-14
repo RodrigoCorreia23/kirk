@@ -183,18 +183,45 @@ class AgentDiscordBot(discord.Client):
                 log.error(f"Claude Code timed out after {timeout}s")
                 return f"Error: Claude Code timed out after {timeout}s."
 
+        stdout_text = stdout.decode() if stdout else ""
+        stderr_text = stderr.decode() if stderr else ""
+
+        # claude --output-format json usually emits a structured result on
+        # stdout even on non-zero exits (max_turns, internal errors, etc.).
+        # Try parsing it once and reuse for both success and error paths.
+        result_obj = None
+        try:
+            result_obj = json.loads(stdout_text)
+        except json.JSONDecodeError:
+            pass
+
         if proc.returncode != 0:
-            err = stderr.decode()[:500] if stderr else "unknown error"
+            if result_obj:
+                subtype = result_obj.get("subtype") or ""
+                partial = (result_obj.get("result") or "").strip()
+                turns = result_obj.get("num_turns")
+                log.error(
+                    f"Claude Code exited {proc.returncode} "
+                    f"(subtype={subtype!r}, turns={turns}, "
+                    f"stderr={stderr_text[:200]!r})"
+                )
+                if subtype == "error_max_turns":
+                    suffix = f"\n\nPartial progress:\n{partial[:1500]}" if partial else ""
+                    return (
+                        f"I hit my turn limit ({turns} turns) before finishing.{suffix}"
+                    )
+                tag = subtype or result_obj.get("error") or "error"
+                if partial:
+                    return f"Error (exit {proc.returncode}, {tag}): {partial[:1500]}"
+                return f"Error (exit {proc.returncode}, {tag})"
+            err = stderr_text[:500] or stdout_text[:500] or "no output captured"
             log.error(f"Claude Code exited {proc.returncode}: {err}")
             return f"Error (exit {proc.returncode}): {err}"
 
-        try:
-            result = json.loads(stdout.decode())
-            return result.get("result", "No response.")
-        except json.JSONDecodeError:
-            # Fall back to raw text output
-            text = stdout.decode().strip()
-            return text if text else "No response."
+        if result_obj:
+            return result_obj.get("result", "No response.")
+        text = stdout_text.strip()
+        return text if text else "No response."
 
     async def _build_thread_context(self, thread: discord.Thread) -> str | None:
         """Fetch recent messages from a thread to seed the session context.

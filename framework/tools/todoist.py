@@ -43,7 +43,7 @@ from pathlib import Path
 import requests
 
 REST_BASE = "https://api.todoist.com/api/v1"
-SYNC_BASE = "https://api.todoist.com/sync/v9"
+SYNC_BASE = "https://api.todoist.com/api/v1"
 
 
 # ---------------------------------------------------------------------------
@@ -138,8 +138,7 @@ def api_post(path: str, data: dict = None) -> dict:
 
 def sync_command(commands: list[dict]) -> dict:
     """Send commands to the Sync API (used for item_move)."""
-    payload = {"commands": json.dumps(commands)}
-    r = requests.post(f"{SYNC_BASE}/sync", headers=headers(), data=payload)
+    r = requests.post(f"{SYNC_BASE}/sync", headers=headers(), json={"commands": commands})
     if not r.ok:
         sys.exit(f"Todoist Sync API error {r.status_code}: {r.text}")
     return r.json()

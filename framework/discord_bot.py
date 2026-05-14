@@ -4,10 +4,16 @@ import asyncio
 import json
 import logging
 import os
+import re
+import time
+from pathlib import Path
 
 import discord
 
 from session_manager import SessionManager
+
+ATTACHMENTS_SUBDIR = "attachments"
+_SAFE_NAME = re.compile(r"[^A-Za-z0-9._-]+")
 
 log = logging.getLogger(__name__)
 
@@ -72,7 +78,14 @@ class AgentDiscordBot(discord.Client):
         if self._user_allowlist and str(message.author.id) not in self._user_allowlist:
             return
 
-        log.info(f"Discord message from {message.author}: {message.content[:100]}")
+        log.info(
+            f"Discord message from {message.author}: {message.content[:100]}"
+            f" (attachments={len(message.attachments)})"
+        )
+
+        # Drop messages with no text and no attachments (e.g., pure reactions)
+        if not message.content and not message.attachments:
+            return
 
         # Get or create session for this channel/thread
         channel_id = message.channel.id
@@ -80,17 +93,21 @@ class AgentDiscordBot(discord.Client):
             channel_id, is_thread
         )
 
+        # Download attachments (if any) before building the prompt
+        attachment_paths = await self._download_attachments(message)
+        user_text = self._compose_user_text(message.content, attachment_paths)
+
         # For new thread sessions, seed with existing messages so the agent
         # knows what was already said (e.g., the bot created the thread and
         # posted an initial message via the discord_tool.py CLI).
-        prompt = message.content
+        prompt = user_text
         if is_new and is_thread:
             thread_context = await self._build_thread_context(message.channel)
             if thread_context:
                 prompt = (
                     f"Context: This is a Discord thread titled \"{message.channel.name}\". "
                     f"Here are the messages posted so far:\n\n{thread_context}\n\n"
-                    f"Now the user says: {message.content}"
+                    f"Now the user says: {user_text}"
                 )
                 log.info(f"Seeded thread {channel_id} with {len(thread_context)} chars of context")
 
@@ -205,6 +222,53 @@ class AgentDiscordBot(discord.Client):
         except Exception as e:
             log.error(f"Failed to fetch thread history: {e}")
             return None
+
+    async def _download_attachments(
+        self, message: discord.Message
+    ) -> list[str]:
+        """Download Discord attachments into the workspace.
+
+        Returns workspace-relative paths so the agent can open them with Read.
+        """
+        if not message.attachments:
+            return []
+
+        dest_dir = Path(self._workspace_dir) / ATTACHMENTS_SUBDIR
+        dest_dir.mkdir(parents=True, exist_ok=True)
+
+        ts = time.strftime("%Y%m%d-%H%M%S", time.localtime())
+        paths: list[str] = []
+        for idx, att in enumerate(message.attachments):
+            safe_name = _SAFE_NAME.sub("_", att.filename) or f"file_{idx}"
+            filename = f"{ts}_{message.id}_{idx}_{safe_name}"
+            target = dest_dir / filename
+            try:
+                await att.save(target)
+            except Exception as e:
+                log.error(f"Failed to save attachment {att.filename}: {e}")
+                continue
+            paths.append(f"{ATTACHMENTS_SUBDIR}/{filename}")
+            log.info(f"Saved attachment {att.filename} -> {target}")
+        return paths
+
+    @staticmethod
+    def _compose_user_text(content: str, attachment_paths: list[str]) -> str:
+        """Build the prompt text, embedding attachment paths when present."""
+        content = content.strip()
+        if not attachment_paths:
+            return content
+
+        listing = "\n".join(f"- {p}" for p in attachment_paths)
+        if content:
+            return (
+                f"{content}\n\n"
+                f"[The user attached the following file(s), saved in the workspace. "
+                f"Use the Read tool to view them:]\n{listing}"
+            )
+        return (
+            f"[The user sent the following file(s) with no caption, saved in the workspace. "
+            f"Use the Read tool to view them and respond:]\n{listing}"
+        )
 
     async def post_to_channel(self, text: str):
         """Post a message to the agent's Discord channel."""

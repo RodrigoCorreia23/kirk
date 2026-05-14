@@ -7,7 +7,7 @@
   },
   "claude": {
     "model": "sonnet",
-    "max_turns": 25,
+    "max_turns": 50,
     "timeout": 600,
     "allowed_tools": "Bash,Read,Write,Edit,Glob,Grep,WebSearch,WebFetch"
   },
